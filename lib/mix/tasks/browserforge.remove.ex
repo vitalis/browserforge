@@ -15,8 +15,7 @@ defmodule Mix.Tasks.Browserforge.Remove do
   @impl Mix.Task
   def run(_args) do
     Application.ensure_all_started(:browserforge)
-
     Download.remove_files()
     Mix.shell().info([:yellow, "Removed all files!"])
   end
-end 
+end

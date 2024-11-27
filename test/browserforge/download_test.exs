@@ -7,6 +7,8 @@ defmodule BrowserForge.DownloadTest do
   @headers_dir "test/temp/headers/data"
   @fingerprints_dir "test/temp/fingerprints/data"
 
+  @zip_content <<80, 75, 5, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0>>
+
   @data_files %{
     headers: %{
       "browser-helper-file.json" => "browser-helper-file.json",
@@ -24,23 +26,17 @@ defmodule BrowserForge.DownloadTest do
     File.mkdir_p!(@headers_dir)
     File.mkdir_p!(@fingerprints_dir)
 
-    test_responses = %{
-      "browser-helper-file.json" => %{test: "data"},
-      "headers-order.json" => %{test: "data"},
-      "header-network-definition.zip" => <<80, 75, 5, 6, 0, 0>>,
-      "input-network-definition.zip" => <<80, 75, 5, 6, 0, 0>>,
-      "fingerprint-network-definition.zip" => <<80, 75, 5, 6, 0, 0>>
-    }
+    Application.put_env(:browserforge, :req_options,
+      plug: fn conn ->
+        cond do
+          String.ends_with?(conn.request_path, ".json") ->
+            Plug.Conn.resp(conn, 200, Jason.encode!(%{test: "data"}))
 
-    Req.Test.stub(:browserforge, fn _conn ->
-      %Req.Response{
-        status: 200,
-        headers: %{"content-type" => ["application/json"]},
-        body: Jason.encode!(%{test: "data"})
-      }
-    end)
-
-    Application.put_env(:browserforge, :req_options, plug: {Req.Test, :browserforge})
+          String.ends_with?(conn.request_path, ".zip") ->
+            Plug.Conn.resp(conn, 200, @zip_content)
+        end
+      end
+    )
 
     on_exit(fn ->
       File.rm_rf!(@temp_dir)
@@ -53,15 +49,23 @@ defmodule BrowserForge.DownloadTest do
   describe "download/1" do
     test "downloads files successfully when valid flags are provided" do
       assert :ok = Download.download(headers: true)
-      assert File.exists?(Path.join(@headers_dir, "browser-helper-file.json"))
+
+      Enum.each(@data_files.headers, fn {local_name, _} ->
+        assert File.exists?(Path.join(@headers_dir, local_name))
+      end)
     end
 
     test "skips download when files exist and are recent" do
-      file_path = Path.join(@headers_dir, "browser-helper-file.json")
-      File.write!(file_path, Jason.encode!(%{test: "data"}))
+      Enum.each(@data_files.headers, fn {local_name, _} ->
+        file_path = Path.join(@headers_dir, local_name)
 
-      now = DateTime.utc_now() |> DateTime.to_unix()
-      File.touch!(file_path, now)
+        content =
+          if String.ends_with?(local_name, ".json"),
+            do: Jason.encode!(%{test: "data"}),
+            else: @zip_content
+
+        File.write!(file_path, content)
+      end)
 
       assert :ok = Download.download_if_not_exists(headers: true)
     end
@@ -71,10 +75,13 @@ defmodule BrowserForge.DownloadTest do
     test "returns true when files exist and are recent" do
       Enum.each(@data_files.headers, fn {local_name, _} ->
         file_path = Path.join(@headers_dir, local_name)
-        File.write!(file_path, Jason.encode!(%{test: "data"}))
 
-        now = DateTime.utc_now() |> DateTime.to_unix()
-        File.touch!(file_path, now)
+        content =
+          if String.ends_with?(local_name, ".json"),
+            do: Jason.encode!(%{test: "data"}),
+            else: @zip_content
+
+        File.write!(file_path, content)
       end)
 
       assert Download.is_downloaded(headers: true)
@@ -87,12 +94,18 @@ defmodule BrowserForge.DownloadTest do
     test "returns false when files are older than a week" do
       Enum.each(@data_files.headers, fn {local_name, _} ->
         file_path = Path.join(@headers_dir, local_name)
-        File.write!(file_path, Jason.encode!(%{test: "data"}))
 
-        old_time =
-          DateTime.utc_now() |> DateTime.add(-8 * 24 * 60 * 60, :second) |> DateTime.to_unix()
+        content =
+          if String.ends_with?(local_name, ".json"),
+            do: Jason.encode!(%{test: "data"}),
+            else: @zip_content
 
-        File.touch!(file_path, old_time)
+        File.write!(file_path, content)
+
+        old_time = :calendar.universal_time() |> :calendar.datetime_to_gregorian_seconds()
+        old_time = old_time - 8 * 24 * 60 * 60
+        old_datetime = :calendar.gregorian_seconds_to_datetime(old_time)
+        File.touch!(file_path, old_datetime)
       end)
 
       refute Download.is_downloaded(headers: true)

@@ -23,6 +23,7 @@ defmodule Mix.Tasks.Browserforge.Update do
 
   @impl Mix.Task
   def run(args) do
+    Mix.shell().info([:yellow, "Downloading model definition files..."])
     Application.ensure_all_started(:browserforge)
 
     {opts, _} =
@@ -40,12 +41,18 @@ defmodule Mix.Tasks.Browserforge.Update do
         _ -> opts
       end
 
-    case Download.download(opts) do
-      :ok ->
-        Mix.shell().info([:green, "Successfully updated definitions!"])
-
-      {:error, reason} ->
-        Mix.shell().error("Failed to update definitions: #{reason}")
+    try do
+      Download.download(opts)
+      Mix.shell().info([:green, "Successfully updated definitions!"])
+    rescue
+      _ ->
+        Download.remove_files()
+        Mix.shell().error("Download failed")
+        exit({:shutdown, 1})
+    catch
+      :exit, _ ->
+        Download.remove_files()
+        Mix.shell().error("Download interrupted")
         exit({:shutdown, 1})
     end
   end

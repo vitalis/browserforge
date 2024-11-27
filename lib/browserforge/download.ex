@@ -57,19 +57,21 @@ defmodule BrowserForge.Download do
       req_options = Keyword.merge([finch: BrowserForge.Finch], req_options)
 
       case Req.get!(url, req_options) do
-        %{status: 200, body: [{_filename, content} | _]} = response when is_list(response.body) ->
+        %{status: 200} = response ->
+          content = cond do
+            String.ends_with?(path, ".zip") ->
+              # For ZIP files, get the raw binary content
+              case response.body do
+                [{_filename, content}] -> content
+                content when is_binary(content) -> content
+              end
+            is_binary(response.body) ->
+              response.body
+            true ->
+              Jason.encode!(response.body)
+          end
+
           File.write!(path, content)
-          Logger.info("#{Path.basename(path)} downloaded successfully")
-          :ok
-
-        %{status: 200, body: body} when is_binary(body) ->
-          File.write!(path, body)
-          Logger.info("#{Path.basename(path)} downloaded successfully")
-          :ok
-
-        %{status: 200, body: body} when is_map(body) ->
-          File.write!(path, Jason.encode!(body))
-          Logger.info("#{Path.basename(path)} downloaded successfully")
           :ok
 
         response ->
@@ -102,21 +104,20 @@ defmodule BrowserForge.Download do
   end
 
   defp file_older_than_a_week?(path) do
-    with {:ok, %File.Stat{mtime: mtime}} <- File.stat(path) do
-      one_week_ago = DateTime.utc_now() |> DateTime.add(-7 * 24 * 60 * 60, :second)
+    case File.stat(path) do
+      {:ok, %File.Stat{mtime: mtime}} when is_tuple(mtime) ->
+        # Convert Erlang datetime tuple to Unix timestamp
+        unix_time =
+          :calendar.datetime_to_gregorian_seconds(mtime) -
+            :calendar.datetime_to_gregorian_seconds({{1970, 1, 1}, {0, 0, 0}})
 
-      case :calendar.gregorian_seconds_to_datetime(
-             mtime + :calendar.datetime_to_gregorian_seconds({{1970, 1, 1}, {0, 0, 0}})
-           ) do
-        datetime when is_tuple(datetime) ->
-          {:ok, file_time} = NaiveDateTime.from_erl(datetime) |> DateTime.from_naive("Etc/UTC")
-          DateTime.compare(file_time, one_week_ago) == :lt
+        one_week_ago =
+          DateTime.utc_now() |> DateTime.add(-7 * 24 * 60 * 60, :second) |> DateTime.to_unix()
 
-        _ ->
-          true
-      end
-    else
-      _ -> true
+        unix_time < one_week_ago
+
+      _ ->
+        true
     end
   end
 
