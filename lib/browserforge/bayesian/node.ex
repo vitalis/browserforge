@@ -41,12 +41,15 @@ defmodule BrowserForge.Bayesian.Node do
 
   @doc """
   Gets the conditional probabilities for this node given parent values.
-  Returns empty map when parent value is not found (matching Python behavior).
   """
   @spec get_probabilities_given_known_values(t(), parent_values()) :: probability_map()
   def get_probabilities_given_known_values(node, parent_values) do
-    node.node_definition["conditionalProbabilities"]
-    |> traverse_probability_tree(node.parent_names, parent_values)
+    probabilities = node.node_definition["conditionalProbabilities"]
+
+    case traverse_probability_tree(probabilities, node.parent_names, parent_values) do
+      probs when is_map(probs) -> probs
+      _ -> node.node_definition["conditionalProbabilities"]
+    end
   end
 
   @doc """
@@ -71,13 +74,31 @@ defmodule BrowserForge.Bayesian.Node do
 
   # Private Functions
 
+  @spec sample_random_value_from_possibilities([String.t()], probability_map()) :: String.t()
+  defp sample_random_value_from_possibilities(possible_values, probabilities) do
+    total_prob = Enum.sum(Map.values(probabilities))
+
+    if total_prob <= 0 do
+      Enum.random(possible_values)
+    else
+      normalized_probs = Map.new(probabilities, fn {k, v} -> {k, v / total_prob} end)
+      random = :rand.uniform()
+
+      {_final_cum, value} = Enum.reduce_while(possible_values, {0.0, List.first(possible_values)},
+        fn value, {cum, _} ->
+          new_cum = cum + Map.get(normalized_probs, value, 0.0)
+          if random <= new_cum, do: {:halt, {new_cum, value}}, else: {:cont, {new_cum, value}}
+        end)
+
+      value
+    end
+  end
+
   defp traverse_probability_tree(tree, [], _parent_values), do: tree
 
   defp traverse_probability_tree(%{"deeper" => deeper}, [parent_name | rest], parent_values) do
     case Map.get(parent_values, parent_name) do
-      nil ->
-        %{}
-
+      nil -> %{}
       value ->
         case Map.get(deeper, value) do
           nil -> %{}
@@ -86,21 +107,6 @@ defmodule BrowserForge.Bayesian.Node do
     end
   end
 
-  defp traverse_probability_tree(probabilities, _parent_names, _parent_values), do: probabilities
-
-  @spec sample_random_value_from_possibilities([String.t()], probability_map()) :: String.t()
-  defp sample_random_value_from_possibilities(possible_values, probabilities) do
-    anchor = :rand.uniform()
-    cumulative_probability = 0.0
-
-    Enum.reduce_while(possible_values, nil, fn value, _acc ->
-      new_probability = cumulative_probability + (probabilities[value] || 0.0)
-
-      if new_probability > anchor do
-        {:halt, value}
-      else
-        {:cont, cumulative_probability + (probabilities[value] || 0.0)}
-      end
-    end) || List.first(possible_values)
-  end
+  defp traverse_probability_tree(probabilities, _parent_names, _parent_values) when is_map(probabilities), do: probabilities
+  defp traverse_probability_tree(_invalid, _parent_names, _parent_values), do: %{}
 end
