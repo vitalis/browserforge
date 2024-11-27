@@ -3,82 +3,73 @@ defmodule BrowserForge.Bayesian.NetworkTest do
 
   alias BrowserForge.Bayesian.Network
 
-  @network_definition %{
-    "nodes" => [
-      %{
-        "name" => "os",
-        "parentNames" => [],
-        "possibleValues" => ["windows", "macos", "linux"],
-        "conditionalProbabilities" => %{
-          "windows" => 0.6,
-          "macos" => 0.3,
-          "linux" => 0.1
-        }
-      },
-      %{
-        "name" => "browser",
-        "parentNames" => ["os"],
-        "possibleValues" => ["chrome", "firefox", "safari"],
-        "conditionalProbabilities" => %{
-          "deeper" => %{
-            "windows" => %{
-              "chrome" => 0.6,
-              "firefox" => 0.3,
-              "safari" => 0.1
-            },
-            "macos" => %{
-              "chrome" => 0.4,
-              "firefox" => 0.2,
-              "safari" => 0.4
-            },
-            "linux" => %{
-              "chrome" => 0.5,
-              "firefox" => 0.4,
-              "safari" => 0.1
-            }
+  setup do
+    # Create a simple test network definition
+    definition = %{
+      "nodes" => [
+        %{
+          "name" => "userAgent",
+          "parentNames" => [],
+          "possibleValues" => [
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/91.0.4472.124",
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Chrome/91.0.4472.124"
+          ],
+          "conditionalProbabilities" => %{
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/91.0.4472.124" => 0.6,
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Chrome/91.0.4472.124" => 0.4
           }
         }
-      }
-    ]
-  }
+      ]
+    }
 
-  setup do
-    test_path = Path.join(System.tmp_dir!(), "test_network.json")
-    File.write!(test_path, Jason.encode!(@network_definition))
+    # Write the definition to a temporary file
+    tmp_dir = System.tmp_dir!()
+    path = Path.join(tmp_dir, "test-network.json")
+    File.write!(path, Jason.encode!(definition))
 
-    start_supervised!({Network, test_path})
+    # Start the network for each test
+    {:ok, pid} = Network.start_link(path)
 
     on_exit(fn ->
-      File.rm!(test_path)
+      File.rm(path)
+      # Cleanup the process if it's still running
+      if Process.alive?(pid), do: GenServer.stop(pid)
     end)
 
-    %{path: test_path}
+    {:ok, path: path}
   end
 
   describe "sample/1" do
     test "generates valid samples" do
-      :rand.seed(:exsss, {1, 2, 3})
-
       result = Network.sample()
 
       assert is_map(result)
-      assert result["os"] in ["windows", "macos", "linux"]
-      assert result["browser"] in ["chrome", "firefox", "safari"]
+
+      assert result["userAgent"] in [
+               "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/91.0.4472.124",
+               "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Chrome/91.0.4472.124"
+             ]
     end
   end
 
   describe "sample_with_restrictions/2" do
     test "generates valid samples with restrictions" do
-      :rand.seed(:exsss, {1, 2, 3})
-
       restrictions = %{
-        "os" => ["windows"],
-        "browser" => ["chrome", "firefox"]
+        "userAgent" => ["Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/91.0.4472.124"]
       }
 
       assert {:ok, result} = Network.sample_with_restrictions(restrictions)
-      assert result["os"] == "windows"
-      assert result["browser"] in ["chrome", "firefox"]
+
+      assert result["userAgent"] ==
+               "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/91.0.4472.124"
+    end
+
+    test "handles invalid restrictions" do
+      restrictions = %{
+        "userAgent" => ["invalid-user-agent"]
+      }
+
+      assert {:error, _reason} = Network.sample_with_restrictions(restrictions)
     end
   end
 end

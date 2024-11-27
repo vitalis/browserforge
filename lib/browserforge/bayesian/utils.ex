@@ -5,6 +5,8 @@ defmodule BrowserForge.Bayesian.Utils do
   and value filtering/intersection operations.
   """
 
+  alias BrowserForge.Bayesian.Node
+
   @type path :: Path.t()
   @type json_result :: {:ok, map()} | {:error, String.t()}
   @type probability_tree :: %{String.t() => probability_tree | number()}
@@ -138,13 +140,19 @@ defmodule BrowserForge.Bayesian.Utils do
     end
   end
 
+  @spec compute_node_set(map(), String.t(), [String.t()]) :: {:ok, map()} | {:error, String.t()}
   defp compute_node_set(network_state, key, values) when is_list(values) and values != [] do
-    node = network_state.nodes_by_name[key]
-    tree = undeeper(node.node_definition["conditionalProbabilities"])
-    paths = filter_by_last_level_keys(tree, values)
+    case Map.get(network_state.nodes_by_name, key) do
+      %Node{} = node ->
+        tree = undeeper(node.node_definition["conditionalProbabilities"])
+        paths = filter_by_last_level_keys(tree, values)
 
-    parent_values = Enum.zip(node.parent_names, paths) |> Map.new()
-    {:ok, Map.put(parent_values, key, values)}
+        parent_values = Enum.zip(node.parent_names, paths) |> Map.new()
+        {:ok, Map.put(parent_values, key, values)}
+
+      nil ->
+        {:error, "Node not found: #{key}"}
+    end
   end
 
   defp compute_node_set(_network_state, key, _values) do

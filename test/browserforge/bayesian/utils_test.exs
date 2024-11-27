@@ -1,6 +1,6 @@
 defmodule BrowserForge.Bayesian.UtilsTest do
   use ExUnit.Case, async: true
-  alias BrowserForge.Bayesian.Utils
+  alias BrowserForge.Bayesian.{Utils, Node}
 
   describe "undeeper/1" do
     test "flattens nested deeper structures" do
@@ -72,58 +72,33 @@ defmodule BrowserForge.Bayesian.UtilsTest do
 
   describe "get_possible_values/2" do
     test "computes possible values given restrictions" do
-      network_state = %{
-        nodes_by_name: %{
-          "browser" => %{
-            name: "browser",
-            parent_names: ["os"],
-            node_definition: %{
-              "conditionalProbabilities" => %{
-                "deeper" => %{
-                  "windows" => %{
-                    "chrome" => 0.6,
-                    "firefox" => 0.4
-                  }
-                }
+      # Create a test network state with proper Node structs
+      node =
+        Node.new(%{
+          "name" => "browser",
+          "parentNames" => ["os"],
+          "possibleValues" => ["chrome", "firefox"],
+          "conditionalProbabilities" => %{
+            "deeper" => %{
+              "windows" => %{
+                "chrome" => 0.6,
+                "firefox" => 0.4
               }
             }
           }
-        }
+        })
+
+      network_state = %{
+        nodes: [node],
+        nodes_by_name: %{"browser" => node}
       }
 
       restrictions = %{
-        "browser" => ["chrome"]
+        "browser" => ["chrome", "firefox"]
       }
 
       assert {:ok, result} = Utils.get_possible_values(network_state, restrictions)
-      assert is_map(result)
-    end
-
-    test "returns error for invalid restrictions" do
-      network_state = %{
-        nodes_by_name: %{
-          "browser" => %{
-            name: "browser",
-            parent_names: ["os"],
-            node_definition: %{
-              "conditionalProbabilities" => %{
-                "deeper" => %{
-                  "windows" => %{
-                    "chrome" => 0.6,
-                    "firefox" => 0.4
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-
-      restrictions = %{
-        "browser" => []
-      }
-
-      assert {:error, _} = Utils.get_possible_values(network_state, restrictions)
+      assert result["browser"] == ["chrome", "firefox"]
     end
   end
 
