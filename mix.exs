@@ -20,10 +20,16 @@ defmodule BrowserForge.MixProject do
 
   defp deps do
     [
+      {:typed_struct, "~> 0.3.0"},
       {:req, "~> 0.4.0"},
       {:jason, "~> 1.4"},
-      {:plug, "~> 1.15"},
-      {:finch, "~> 0.10"}
+      # Dev/Test deps
+      {:dialyxir, "~> 1.4", only: [:dev], runtime: false},
+      {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
+      {:ex_doc, "~> 0.35.0", only: :dev, runtime: false},
+      {:excoveralls, "~> 0.18.0", only: :test},
+      {:mox, "~> 1.1", only: :test},
+      {:plug, "~> 1.14", only: :test}
     ]
   end
 end

@@ -19,6 +19,29 @@ defmodule BrowserForge.IntegrationTest do
     :ok
   end
 
+  describe "headers generation integration" do
+    test "downloads header files and verifies their existence" do
+      # First ensure files don't exist
+      refute Download.is_downloaded(headers: true)
+
+      # Download the header files
+      assert :ok = Download.download(headers: true)
+      assert Download.is_downloaded(headers: true)
+
+      # Verify specific header files exist
+      headers_dir = Path.join([Application.get_env(:browserforge, :root_dir), "headers/data"])
+
+      assert File.exists?(Path.join(headers_dir, "browser-helper-file.json"))
+      assert File.exists?(Path.join(headers_dir, "header-network.zip"))
+      assert File.exists?(Path.join(headers_dir, "headers-order.json"))
+      assert File.exists?(Path.join(headers_dir, "input-network.zip"))
+
+      # Verify files are readable and contain valid data
+      browser_helper = Path.join(headers_dir, "browser-helper-file.json") |> File.read!()
+      assert {:ok, _json} = Jason.decode(browser_helper)
+    end
+  end
+
   describe "fingerprint generation integration" do
     test "downloads network definition and generates valid fingerprints" do
       # First ensure files don't exist
