@@ -9,9 +9,9 @@ defmodule BrowserForge.Bayesian.Network do
   alias BrowserForge.Bayesian.{Node, Utils}
 
   @type network_state :: %{
-    nodes: [Node.t()],
-    nodes_by_name: %{String.t() => Node.t()}
-  }
+          nodes: [Node.t()],
+          nodes_by_name: %{String.t() => Node.t()}
+        }
   @type sample_result :: {:ok, map()} | {:error, String.t()}
   @type restrictions :: %{String.t() => [String.t()]}
 

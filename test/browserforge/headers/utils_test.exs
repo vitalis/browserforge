@@ -99,4 +99,4 @@ defmodule BrowserForge.Headers.UtilsTest do
       assert Utils.tuplify(nil) == nil
     end
   end
-end 
+end

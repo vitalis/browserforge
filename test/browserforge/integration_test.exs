@@ -52,10 +52,11 @@ defmodule BrowserForge.IntegrationTest do
       assert Download.is_downloaded(fingerprints: true)
 
       # Start the Bayesian Network with downloaded definition
-      definition_path = Path.join([
-        Application.get_env(:browserforge, :root_dir),
-        "fingerprints/data/fingerprint-network.zip"
-      ])
+      definition_path =
+        Path.join([
+          Application.get_env(:browserforge, :root_dir),
+          "fingerprints/data/fingerprint-network.zip"
+        ])
 
       assert {:ok, _pid} = Network.start_link(definition_path)
 

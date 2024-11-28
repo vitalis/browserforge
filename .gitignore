@@ -175,3 +175,6 @@ data/
 _build/
 deps/
 .elixir_ls/
+
+# Test fixtures
+/test/fixtures/

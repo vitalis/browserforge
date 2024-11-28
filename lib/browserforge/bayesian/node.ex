@@ -84,8 +84,9 @@ defmodule BrowserForge.Bayesian.Node do
       normalized_probs = Map.new(probabilities, fn {k, v} -> {k, v / total_prob} end)
       random = :rand.uniform()
 
-      {_final_cum, value} = Enum.reduce_while(possible_values, {0.0, List.first(possible_values)},
-        fn value, {cum, _} ->
+      {_final_cum, value} =
+        Enum.reduce_while(possible_values, {0.0, List.first(possible_values)}, fn value,
+                                                                                  {cum, _} ->
           new_cum = cum + Map.get(normalized_probs, value, 0.0)
           if random <= new_cum, do: {:halt, {new_cum, value}}, else: {:cont, {new_cum, value}}
         end)
@@ -98,7 +99,9 @@ defmodule BrowserForge.Bayesian.Node do
 
   defp traverse_probability_tree(%{"deeper" => deeper}, [parent_name | rest], parent_values) do
     case Map.get(parent_values, parent_name) do
-      nil -> %{}
+      nil ->
+        %{}
+
       value ->
         case Map.get(deeper, value) do
           nil -> %{}
@@ -107,6 +110,9 @@ defmodule BrowserForge.Bayesian.Node do
     end
   end
 
-  defp traverse_probability_tree(probabilities, _parent_names, _parent_values) when is_map(probabilities), do: probabilities
+  defp traverse_probability_tree(probabilities, _parent_names, _parent_values)
+       when is_map(probabilities),
+       do: probabilities
+
   defp traverse_probability_tree(_invalid, _parent_names, _parent_values), do: %{}
 end

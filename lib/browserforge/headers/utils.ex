@@ -35,8 +35,10 @@ defmodule BrowserForge.Headers.Utils do
     cond do
       String.starts_with?(name, ":") or String.starts_with?(name, "sec-ch-ua") ->
         name
+
       name in @pascalize_upper ->
         String.upcase(name)
+
       true ->
         String.capitalize(name)
     end
@@ -58,4 +60,4 @@ defmodule BrowserForge.Headers.Utils do
   def tuplify(obj) when is_tuple(obj), do: obj
   def tuplify(nil), do: nil
   def tuplify(obj), do: {obj}
-end 
+end

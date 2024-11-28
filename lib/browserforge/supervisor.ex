@@ -35,4 +35,4 @@ defmodule BrowserForge.Supervisor do
   def stop_network(pid) when is_pid(pid) do
     DynamicSupervisor.terminate_child(BrowserForge.NetworkSupervisor, pid)
   end
-end 
+end
