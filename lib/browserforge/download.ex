@@ -58,18 +58,21 @@ defmodule BrowserForge.Download do
 
       case Req.get!(url, req_options) do
         %{status: 200} = response ->
-          content = cond do
-            String.ends_with?(path, ".zip") ->
-              # For ZIP files, get the raw binary content
-              case response.body do
-                [{_filename, content}] -> content
-                content when is_binary(content) -> content
-              end
-            is_binary(response.body) ->
-              response.body
-            true ->
-              Jason.encode!(response.body)
-          end
+          content =
+            cond do
+              String.ends_with?(path, ".zip") ->
+                # For ZIP files, get the raw binary content
+                case response.body do
+                  [{_filename, content}] -> content
+                  content when is_binary(content) -> content
+                end
+
+              is_binary(response.body) ->
+                response.body
+
+              true ->
+                Jason.encode!(response.body)
+            end
 
           File.write!(path, content)
           :ok
