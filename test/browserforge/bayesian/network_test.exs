@@ -36,12 +36,12 @@ defmodule BrowserForge.Bayesian.NetworkTest do
       if Process.alive?(pid), do: GenServer.stop(pid)
     end)
 
-    {:ok, path: path}
+    {:ok, pid: pid}
   end
 
   describe "sample/1" do
-    test "generates valid samples" do
-      result = Network.sample()
+    test "generates valid samples", %{pid: pid} do
+      result = Network.sample(pid)
 
       assert is_map(result)
 
@@ -53,23 +53,23 @@ defmodule BrowserForge.Bayesian.NetworkTest do
   end
 
   describe "sample_with_restrictions/2" do
-    test "generates valid samples with restrictions" do
+    test "generates valid samples with restrictions", %{pid: pid} do
       restrictions = %{
         "userAgent" => ["Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/91.0.4472.124"]
       }
 
-      assert {:ok, result} = Network.sample_with_restrictions(restrictions)
+      assert {:ok, result} = Network.sample_with_restrictions(pid, restrictions)
 
       assert result["userAgent"] ==
                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/91.0.4472.124"
     end
 
-    test "handles invalid restrictions" do
+    test "handles invalid restrictions", %{pid: pid} do
       restrictions = %{
         "userAgent" => ["invalid-user-agent"]
       }
 
-      assert {:error, _reason} = Network.sample_with_restrictions(restrictions)
+      assert {:error, _reason} = Network.sample_with_restrictions(pid, restrictions)
     end
   end
 end

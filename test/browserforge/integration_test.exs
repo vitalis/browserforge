@@ -58,10 +58,10 @@ defmodule BrowserForge.IntegrationTest do
           "fingerprints/data/fingerprint-network.zip"
         ])
 
-      assert {:ok, _pid} = Network.start_link(definition_path)
+      {:ok, pid} = Network.start_link(definition_path)
 
       # Test unrestricted sampling
-      sample = Network.sample()
+      sample = Network.sample(pid)
       assert is_map(sample)
       assert Map.keys(sample) |> length() > 0
 
@@ -73,7 +73,7 @@ defmodule BrowserForge.IntegrationTest do
         ]
       }
 
-      assert {:ok, restricted_sample} = Network.sample_with_restrictions(restrictions)
+      assert {:ok, restricted_sample} = Network.sample_with_restrictions(pid, restrictions)
 
       # Verify restrictions are met
       assert restricted_sample["userAgent"] in restrictions["userAgent"]
@@ -84,10 +84,10 @@ defmodule BrowserForge.IntegrationTest do
         "browserName" => ["InvalidBrowser"]
       }
 
-      assert {:error, _reason} = Network.sample_with_restrictions(invalid_restrictions)
+      assert {:error, _reason} = Network.sample_with_restrictions(pid, invalid_restrictions)
 
       # Test multiple samples for consistency
-      samples = for _i <- 1..10, do: Network.sample()
+      samples = for _i <- 1..10, do: Network.sample(pid)
 
       # Verify all samples have the same structure
       [first_sample | rest] = samples
@@ -100,6 +100,9 @@ defmodule BrowserForge.IntegrationTest do
       # Verify samples are different (not just returning the same values)
       unique_samples = Enum.uniq(samples)
       assert length(unique_samples) > 1
+
+      # Cleanup
+      GenServer.stop(pid)
     end
   end
 end

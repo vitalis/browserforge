@@ -22,24 +22,24 @@ defmodule BrowserForge.Bayesian.Network do
   """
   @spec start_link(Path.t()) :: GenServer.on_start()
   def start_link(definition_path) do
-    GenServer.start_link(__MODULE__, definition_path, name: __MODULE__)
+    GenServer.start_link(__MODULE__, definition_path)
   end
 
   @doc """
   Generates a random sample from the network without restrictions.
   """
-  @spec sample() :: map()
-  def sample do
-    GenServer.call(__MODULE__, :sample)
+  @spec sample(pid()) :: map()
+  def sample(pid) do
+    GenServer.call(pid, :sample)
   end
 
   @doc """
   Generates a random sample from the network with the given restrictions.
   Matches Python's sample_with_restrictions functionality.
   """
-  @spec sample_with_restrictions(restrictions()) :: sample_result()
-  def sample_with_restrictions(restrictions) do
-    GenServer.call(__MODULE__, {:sample_with_restrictions, restrictions})
+  @spec sample_with_restrictions(pid(), restrictions()) :: sample_result()
+  def sample_with_restrictions(pid, restrictions) do
+    GenServer.call(pid, {:sample_with_restrictions, restrictions})
   end
 
   # Server Callbacks
